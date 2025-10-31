@@ -1,0 +1,73 @@
+<resources>
+    <string name="app_name">Teams</string>
+    <string name="title_app_bar">Football Teams</string>
+    <string name="action_language">Language</string>
+    <string name="es_short">ES</string>
+    <string name="en_short">EN</string>
+    <string name="es_label">Spanish</string>
+    <string name="en_label">English</string>
+
+    <string name="info_title">Information</string>
+    <string name="info_text">Edit: Add, edit and delete (Tap on Player) new players.&#10;Generate: Create 2 teams balanced by average rating.&#10;Undo: Clear the created teams.&#10;Create: Manually create both teams.&#10;🌐: Change to English.&#10;⏳: View and edit saved matches.</string>
+    <string name="info_ok">Got it</string>
+
+    <string name="select_players_and_count">Select players and count</string>
+    <string name="enabled_count">Enabled: %1$d</string>
+    <string name="edit">Edit</string>
+    <string name="players_count">Number of players: %1$d</string>
+    <string name="generate">Generate</string>
+    <string name="create">Create</string>
+    <string name="undo">Undo</string>
+    <string name="players_tap_to_select">Players (tap to select)</string>
+
+    <string name="min_is_2">Minimum is 2</string>
+    <string name="not_enough_selected">Not enough selected players</string>
+
+    <string name="empty_state">No teams yet. Select players and create teams.</string>
+    <string name="team_a">Team A</string>
+    <string name="team_b">Team B</string>
+    <string name="average">Average: %1$s</string>
+
+    <string name="create_teams_title">Create teams</string>
+    <string name="assign_each_player">Assign each player to Team A, Team B or None.</string>
+    <string name="apply">Apply</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="edit_players_title">Edit players</string>
+    <string name="edit_existing_ratings">Edit existing ratings:</string>
+    <string name="rating">Rating</string>
+    <string name="rating_placeholder">(1.0-10)</string>
+    <string name="add_new_player">Add new player:</string>
+    <string name="name">Name</string>
+    <string name="goalkeeper">Goalkeeper</string>
+    <string name="add">Add</string>
+    <string name="save_changes">Save changes</string>
+    <string name="close">Close</string>
+
+    <string name="edit_player_title">Edit player</string>
+    <string name="save">Save</string>
+    <string name="delete">Delete</string>
+    <string name="delete_player_title">Delete player</string>
+    <string name="delete_confirm">Are you sure you want to delete "%1$s"?</string>
+    <string name="edit_team_name">Edit team name</string>
+    <string name="team_name_label">Team name</string>
+    <string name="history">History</string>
+    <string name="history_title">Match history</string>
+    <string name="no_history">No saved matches</string>
+    <string name="save_match">Save match</string>
+    <string name="clear_history">Clear history</string>
+    <string name="clear_history_title">Clear history</string>
+    <string name="clear_history_confirm">Are you sure you want to clear all saved matches?</string>
+    <string name="delete_match_title">Delete match</string>
+    <string name="delete_match_confirm">Delete the match "%1$s" vs "%2$s"?</string>
+    <string name="select_all">Select all</string>
+    <string name="result_label">Result</string>
+    <string name="share">Share</string>
+    <string name="share_subject_current">Generated teams</string>
+    <string name="share_subject_match">Match: %1$s vs %2$s</string>
+    <string name="hide_results">Hide results</string>
+    <string name="show_results">Show results</string>
+    <string name="formation">Formation</string>
+    <string name="select_formation">Choose formation</string>
+    <string name="switch_team">Switch team</string>
+</resources>
