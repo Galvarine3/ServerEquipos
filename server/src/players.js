@@ -54,7 +54,8 @@ const routerFactory = (prisma) => {
   });
 
   router.post('/bulk', async (req, res) => {
-    const arr = Array.isArray(req.body) ? req.body : [];
+    const body = req.body;
+    const arr = Array.isArray(body) ? body : (Array.isArray(body?.players) ? body.players : []);
     const parsed = arr.map(p => playerSchema.safeParse(p)).filter(r => r.success).map(r => r.data);
     const tx = [];
     for (const p of parsed) {
