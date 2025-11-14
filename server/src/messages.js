@@ -56,7 +56,12 @@ const routerFactory = (prisma, hub) => {
         }
       });
       const clientMsg = toClientMessage(saved);
-      try { hub && hub.sendToUser && hub.sendToUser(data.toUserId, { type: 'message_new', data: clientMsg }); } catch (_) {}
+      try {
+        if (hub && hub.sendToUser) {
+          hub.sendToUser(data.toUserId, { type: 'message_new', data: clientMsg });
+          hub.sendToUser(req.userId, { type: 'message_new', data: clientMsg });
+        }
+      } catch (_) {}
       res.status(201).json(clientMsg);
     } catch (e) {
       res.status(400).json({ error: 'create_failed' });
