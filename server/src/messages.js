@@ -6,6 +6,15 @@ const routerFactory = (prisma, hub) => {
   const router = express.Router();
   router.use(authMiddleware);
 
+  // Helper: convert BigInt fields to JSON-serializable values
+  const toClientMessage = (m) => {
+    if (!m) return m;
+    return {
+      ...m,
+      time: typeof m.time === 'bigint' ? Number(m.time) : m.time,
+    };
+  };
+
   // GET /messages?withUser=<id>
   router.get('/', async (req, res) => {
     const otherId = (req.query.withUser || '').toString();
@@ -19,7 +28,7 @@ const routerFactory = (prisma, hub) => {
       },
       orderBy: { time: 'asc' }
     });
-    res.json(list);
+    res.json(list.map(toClientMessage));
   });
 
   // POST /messages
@@ -46,8 +55,9 @@ const routerFactory = (prisma, hub) => {
           time: BigInt(data.time || Date.now())
         }
       });
-      try { hub && hub.sendToUser && hub.sendToUser(data.toUserId, { type: 'message_new', data: saved }); } catch (_) {}
-      res.status(201).json(saved);
+      const clientMsg = toClientMessage(saved);
+      try { hub && hub.sendToUser && hub.sendToUser(data.toUserId, { type: 'message_new', data: clientMsg }); } catch (_) {}
+      res.status(201).json(clientMsg);
     } catch (e) {
       res.status(400).json({ error: 'create_failed' });
     }
