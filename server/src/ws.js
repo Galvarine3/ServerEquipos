@@ -79,7 +79,14 @@ function initWS(server, prisma) {
               time: t
             }
           });
-          const payload = { type: 'message_new', data: saved };
+          const payload = {
+            type: 'message_new',
+            data: {
+              ...saved,
+              // Ensure BigInt is serialized for clients
+              time: typeof saved.time === 'bigint' ? Number(saved.time) : saved.time,
+            },
+          };
           // echo to sender and push to receiver
           sendToUser(userId, payload);
           sendToUser(toUserId, payload);
