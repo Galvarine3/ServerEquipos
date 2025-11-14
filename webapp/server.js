@@ -20,6 +20,36 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Minimal in-memory data store for equipos
+const equipos = [
+  { id: 1, nombre: 'Equipo A' },
+  { id: 2, nombre: 'Equipo B' }
+];
+
+app.get('/api/equipos', (_req, res) => {
+  res.json(equipos);
+});
+
+app.post('/api/equipos', (req, res) => {
+  const { nombre } = req.body || {};
+  if (!nombre || typeof nombre !== 'string' || !nombre.trim()) {
+    return res.status(400).json({ error: 'nombre requerido' });
+  }
+  const item = { id: Date.now(), nombre: nombre.trim() };
+  equipos.push(item);
+  res.status(201).json(item);
+});
+
+app.delete('/api/equipos/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const idx = equipos.findIndex(e => e.id === id);
+  if (idx === -1) {
+    return res.status(404).json({ error: 'no encontrado' });
+  }
+  const [removed] = equipos.splice(idx, 1);
+  res.json(removed);
+});
+
 // Fallback to index.html for root
 app.get('/', (_req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));

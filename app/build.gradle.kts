@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.equipos"
-        minSdk = 31
+        minSdk = 27
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -65,11 +65,14 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout-compose:1.1.0")
     implementation("com.google.accompanist:accompanist-navigation-material:0.36.0")
     implementation("androidx.palette:palette-ktx:1.0.0")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 
+    // Networking
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-
-
-
+    // Lightweight JSON parsing (no reflection, no compiler plugin needed for JsonElement usage)
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
 
 

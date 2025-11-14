@@ -16,5 +16,5 @@ val TurquoiseDark = Color(0xFF009E8C)
 val Black = Color(0xFF000000)
 val White = Color(0xFFFFFFFF)
 // Sports theme greens
-val GrassGreen = Color(0xFF6BB84A)
-val GrassGreenDark = Color(0xFF4A9831)
+val GrassGreen = Color(0xFF7ED957)
+val GrassGreenDark = Color(0xFF57B33A)

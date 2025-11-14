@@ -71,5 +71,93 @@
     <string name="formation">Formación</string>
     <string name="select_formation">Elegir formación</string>
     <string name="switch_team">Cambiar equipo</string>
+    
+    <!-- Localization additions -->
+    <string name="welcome_user">Bienvenido, %1$s</string>
+    <string name="active_session">Sesión activa</string>
+    <string name="versus_format">%1$s vs %2$s</string>
+    <string name="score_format">%1$d - %2$d</string>
+    
+    <string name="logout_confirm">¿Estás seguro que deseas cerrar sesión, %1$s?</string>
+    <string name="email_or_name">Email o nombre</string>
+    <string name="password_label">Contraseña</string>
+    <string name="logout">Cerrar sesión</string>
+    <string name="create_account">Crear cuenta</string>
+    <string name="register_title">Registrar</string>
+    <string name="password_min">Contraseña (mín %1$d)</string>
+    <string name="confirm_password">Confirmar contraseña</string>
+    
+    <string name="password_strength_weak">Contraseña débil</string>
+    <string name="password_strength_medium">Contraseña media</string>
+    <string name="password_strength_good">Contraseña buena</string>
+    <string name="password_strength_strong">Contraseña fuerte</string>
+    <string name="registering">Registrando...</string>
+    <string name="registration_done">Registro completado</string>
+    <string name="login">Iniciar sesión</string>
+    <string name="logging_in">Iniciando…</string>
+    
+    <string name="attack">Ataque</string>
+    <string name="defense">Defensa</string>
+    <string name="physical">Físico</string>
+    <string name="have_account_login">¿Ya tienes cuenta? Inicia sesión</string>
     <string name="formation_both">Formación (ambos)</string>
+
+    <!-- Errors -->
+    <string name="err_email_or_name_required">Ingresa tu email o nombre</string>
+    <string name="err_password_required">Ingresa tu contraseña</string>
+    <string name="err_server_response">Error en la respuesta del servidor</string>
+    <string name="err_invalid_credentials">Email o contraseña incorrectos</string>
+    <string name="err_invalid_data">Datos inválidos</string>
+    <string name="err_server_try_again">Error del servidor. Intenta nuevamente.</string>
+    <string name="err_login_generic">Error al iniciar sesión</string>
+    <string name="err_connection_with_detail">Error de conexión: %1$s</string>
+    <string name="err_name_required">Ingresa tu nombre</string>
+    <string name="err_email_invalid">Email inválido</string>
+    <string name="err_password_min">Mínimo %1$d caracteres</string>
+    <string name="err_passwords_mismatch">Las contraseñas no coinciden</string>
+    <string name="err_server_unavailable">Servidor no disponible. Intenta nuevamente.</string>
+    <string name="err_email_taken">Email ya registrado</string>
+    <string name="err_register_generic_with_detail">Error de registro%1$s</string>
+    
+    <!-- New localization helpers -->
+    <string name="email">Email</string>
+    <string name="bullet_player_name">• %1$s</string>
+    <string name="assignment_a">A</string>
+    <string name="assignment_b">B</string>
+    <string name="assignment_none">N</string>
+    <string name="community">Comunidad</string>
+    <string name="open_community">Abrir comunidad</string>
+    <string name="nearby_users">Usuarios cercanos</string>
+    <string name="grant_location">Conceder ubicación</string>
+    <string name="location_denied">Permiso de ubicación denegado</string>
+    <string name="searching">Buscando…</string>
+    <string name="no_users_nearby">No hay usuarios cercanos</string>
+    <string name="distance_km">%1$.1f km</string>
+    <string name="create_match_offer">Crear oferta de partido</string>
+    <string name="create_vacancy">Publicar vacantes</string>
+
+    <!-- Comunidad: publicación de posts -->
+    <string name="community_title">Comunidad</string>
+    <string name="post_message_label">Mensaje</string>
+    <string name="sport_label">Deporte</string>
+    <string name="sport_futbolito">Futbolito</string>
+    <string name="available_players">Disponibles</string>
+    <string name="total_players">Total</string>
+    <string name="locality_label">Localidad o comuna</string>
+    <string name="publish">Publicar</string>
+    <string name="posts_list_title">Publicaciones</string>
+    <string name="empty_posts">Aún no hay publicaciones</string>
+    <string name="post_published">Publicación creada</string>
+    <string name="post_published_remote">Publicación creada (servidor)</string>
+    <string name="post_published_local">Publicación guardada localmente</string>
+    <string name="err_post_required">Completa mensaje, disponibles, total y localidad</string>
+    <string name="post_format_title">%1$s: %2$s: %3$d/%4$d</string>
+    <string name="err_post_counts">Disponibles debe ser mayor a 0 y menor o igual que Total</string>
+    <string name="post_deleted">Publicación eliminada</string>
+    <string name="post_deleted_remote">Publicación eliminada (servidor)</string>
+    <string name="post_deleted_local">Publicación eliminada localmente</string>
+    <string name="post_updated">Publicación actualizada</string>
+    <string name="post_updated_remote">Publicación actualizada (servidor)</string>
+    <string name="post_updated_local">Publicación actualizada localmente</string>
+    <string name="chat">Chat</string>
   </resources>
