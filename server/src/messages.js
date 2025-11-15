@@ -34,6 +34,36 @@ const routerFactory = (prisma, hub) => {
     res.json(list.map(toClientMessage));
   });
 
+  // GET /messages/threads?postId=<id>
+  router.get('/threads', async (req, res) => {
+    const postId = (req.query.postId || '').toString();
+    if (!postId) return res.status(400).json({ error: 'postId_required' });
+    const uid = req.userId;
+    const list = await prisma.message.findMany({
+      where: {
+        postId,
+        OR: [
+          { fromUserId: uid },
+          { toUserId: uid }
+        ]
+      },
+      orderBy: { time: 'desc' }
+    });
+    // Reduce to distinct partner threads with latest message
+    const threads = new Map(); // partnerId -> { userId, userName, lastText, time }
+    for (const m of list) {
+      const isOutgoing = m.fromUserId === uid;
+      const partnerId = isOutgoing ? m.toUserId : m.fromUserId;
+      const partnerName = isOutgoing ? (m.toName || '') : (m.fromName || '');
+      const t = typeof m.time === 'bigint' ? Number(m.time) : m.time;
+      if (!threads.has(partnerId) || threads.get(partnerId).time < t) {
+        threads.set(partnerId, { userId: partnerId, userName: partnerName, lastText: m.text, time: t });
+      }
+    }
+    const arr = Array.from(threads.values()).sort((a, b) => b.time - a.time);
+    res.json(arr);
+  });
+
   // POST /messages
   const postSchema = z.object({
     toUserId: z.string().min(1),
