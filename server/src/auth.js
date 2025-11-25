@@ -3,10 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { z } = require('zod');
 const crypto = require('crypto');
-let nodemailer;
-try { nodemailer = require('nodemailer'); } catch { nodemailer = null; }
-let Resend;
-try { Resend = require('resend').Resend; } catch { Resend = null; }
+const Resend = require('resend').Resend;
 
 const routerFactory = (prisma) => {
   const router = express.Router();
@@ -47,49 +44,8 @@ const routerFactory = (prisma) => {
         console.error('[auth][resend] error', e);
       }
     }
-    if (!nodemailer) {
-      console.log('[auth] nodemailer not installed, verification link:', link);
-      return;
-    }
-    const host = process.env.SMTP_HOST;
-    const port = Number(process.env.SMTP_PORT || 587);
-    const userS = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-    const from = process.env.MAIL_FROM || 'no-reply@equipos';
-    const secure = String(process.env.SMTP_SECURE || '').toLowerCase() === 'true' || port === 465;
-    const debug = String(process.env.SMTP_DEBUG || '').toLowerCase() === 'true';
-    const requireTLS = port === 587 && !secure;
-    const tlsInsecure = String(process.env.SMTP_TLS_INSECURE || '').toLowerCase() === 'true';
-    if (debug) {
-      console.log('[auth][smtp] config', {
-        host,
-        port,
-        secure,
-        requireTLS,
-        hasAuth: !!(userS && pass),
-        from,
-        timeouts: {
-          connectionTimeout: Number(process.env.SMTP_TIMEOUT || 10000),
-          greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT || 10000),
-          socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT || 10000),
-        },
-        tlsInsecure,
-      });
-    }
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      requireTLS,
-      auth: userS && pass ? { user: userS, pass } : undefined,
-      connectionTimeout: Number(process.env.SMTP_TIMEOUT || 10000),
-      greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT || 10000),
-      socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT || 10000),
-      logger: debug,
-      debug,
-      tls: tlsInsecure ? { rejectUnauthorized: false } : undefined,
-    });
-    await transporter.sendMail({ to: user.email, from, subject: 'Verifica tu correo', text: `Hola${user.name ? ' ' + user.name : ''}, verifica tu correo: ${link}`, html: `<p>Hola${user.name ? ' ' + user.name : ''},</p><p>Verifica tu correo haciendo clic en el siguiente enlace:</p><p><a href="${link}">Verificar correo</a></p>` });
+    console.log('[auth][resend] not configured, verification link:', link);
+    return;
   }
 
   router.post('/register', async (req, res) => {
