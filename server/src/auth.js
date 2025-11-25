@@ -43,6 +43,22 @@ const routerFactory = (prisma) => {
     const debug = String(process.env.SMTP_DEBUG || '').toLowerCase() === 'true';
     const requireTLS = port === 587 && !secure;
     const tlsInsecure = String(process.env.SMTP_TLS_INSECURE || '').toLowerCase() === 'true';
+    if (debug) {
+      console.log('[auth][smtp] config', {
+        host,
+        port,
+        secure,
+        requireTLS,
+        hasAuth: !!(userS && pass),
+        from,
+        timeouts: {
+          connectionTimeout: Number(process.env.SMTP_TIMEOUT || 10000),
+          greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT || 10000),
+          socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT || 10000),
+        },
+        tlsInsecure,
+      });
+    }
     const transporter = nodemailer.createTransport({
       host,
       port,
