@@ -39,7 +39,23 @@ const routerFactory = (prisma) => {
     const userS = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
     const from = process.env.MAIL_FROM || 'no-reply@equipos';
-    const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: userS && pass ? { user: userS, pass } : undefined });
+    const secure = String(process.env.SMTP_SECURE || '').toLowerCase() === 'true' || port === 465;
+    const debug = String(process.env.SMTP_DEBUG || '').toLowerCase() === 'true';
+    const requireTLS = port === 587 && !secure;
+    const tlsInsecure = String(process.env.SMTP_TLS_INSECURE || '').toLowerCase() === 'true';
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      requireTLS,
+      auth: userS && pass ? { user: userS, pass } : undefined,
+      connectionTimeout: Number(process.env.SMTP_TIMEOUT || 10000),
+      greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT || 10000),
+      socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT || 10000),
+      logger: debug,
+      debug,
+      tls: tlsInsecure ? { rejectUnauthorized: false } : undefined,
+    });
     await transporter.sendMail({ to: user.email, from, subject: 'Verifica tu correo', text: `Hola${user.name ? ' ' + user.name : ''}, verifica tu correo: ${link}`, html: `<p>Hola${user.name ? ' ' + user.name : ''},</p><p>Verifica tu correo haciendo clic en el siguiente enlace:</p><p><a href="${link}">Verificar correo</a></p>` });
   }
 
