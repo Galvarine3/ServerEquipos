@@ -3,8 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { z } = require('zod');
 const crypto = require('crypto');
-const { sendVerificationEmail } = require('./email');
-const Resend = require('resend').Resend;
+const { sendVerificationEmail, sendVerificationLink } = require('./email');
 
 const routerFactory = (prisma) => {
   const router = express.Router();
@@ -30,22 +29,11 @@ const routerFactory = (prisma) => {
     });
     const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000';
     const link = `${baseUrl}/auth/verify?token=${encodeURIComponent(token)}`;
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      console.log('[auth][resend] not configured, verification link:', link);
-      return;
-    }
     try {
-      const resend = new Resend(apiKey);
-      const from = process.env.MAIL_FROM || 'onboarding@resend.dev';
-      const subject = 'Verifica tu correo';
-      const text = `Hola${user.name ? ' ' + user.name : ''}, verifica tu correo: ${link}`;
-      const html = `<p>Hola${user.name ? ' ' + user.name : ''},</p><p>Verifica tu correo haciendo clic en el siguiente enlace:</p><p><a href="${link}">Verificar correo</a></p>`;
-      const r = await resend.emails.send({ from, to: user.email, subject, text, html });
-      if (!r || !r.id) throw new Error('resend_failed');
+      await sendVerificationLink(user, link);
       return;
     } catch (e) {
-      console.error('[auth][resend] error', e);
+      console.error('sendVerification error', e);
       console.log('[auth] verification link:', link);
       return;
     }
