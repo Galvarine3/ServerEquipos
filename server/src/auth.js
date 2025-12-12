@@ -10,7 +10,6 @@ const routerFactory = (prisma) => {
   const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
 
   const emailCreds = z.object({ email: z.string().email(), password: z.string().min(6) });
-  const nameCreds  = z.object({ name: z.string().min(1), password: z.string().min(6) });
   const registerSchema = emailCreds.extend({
     name: z.string().min(1)
   });
@@ -52,19 +51,19 @@ const routerFactory = (prisma) => {
   });
 
   router.post('/login', async (req, res) => {
-    const body = req.body || {};
-    const useEmail = typeof body.email === 'string' && body.email.length > 0;
-    const schema = useEmail ? emailCreds : nameCreds;
-    const parse = schema.safeParse(body);
+    const parse = emailCreds.safeParse(req.body || {});
     if (!parse.success) return res.status(400).json({ error: 'invalid_body' });
-    const { password } = parse.data;
-    const user = useEmail
-      ? await prisma.user.findUnique({ where: { email: parse.data.email } })
-      : await prisma.user.findFirst({ where: { name: parse.data.name } });
+    const { email, password } = parse.data;
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(401).json({ error: 'invalid_credentials' });
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) return res.status(401).json({ error: 'invalid_credentials' });
-    if (!user.emailVerified) return res.status(403).json({ error: 'email_not_verified' });
+    if (!user.emailVerified) {
+      return res.status(403).json({
+        error: 'email_not_verified',
+        message: 'Tu correo aún no está verificado. Revisa tu bandeja de entrada y, si no ves el correo, revisa también la carpeta de Spam o Correos no deseados.'
+      });
+    }
     const tokens = signTokens(user.id);
     res.json({ user: { id: user.id, email: user.email, name: user.name || null }, ...tokens });
   });
