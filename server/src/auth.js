@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 const { z } = require('zod');
 const crypto = require('crypto');
 const { sendVerificationEmail, sendVerificationLink } = require('./email');
@@ -8,6 +9,8 @@ const { sendVerificationEmail, sendVerificationLink } = require('./email');
 const routerFactory = (prisma) => {
   const router = express.Router();
   const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
+  const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+  const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
   const emailCreds = z.object({ email: z.string().email(), password: z.string().min(6) });
   const registerSchema = emailCreds.extend({
@@ -55,7 +58,7 @@ const routerFactory = (prisma) => {
     if (!parse.success) return res.status(400).json({ error: 'invalid_body' });
     const { email, password } = parse.data;
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return res.status(401).json({ error: 'invalid_credentials' });
+    if (!user || !user.passwordHash) return res.status(401).json({ error: 'invalid_credentials' });
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) return res.status(401).json({ error: 'invalid_credentials' });
     if (!user.emailVerified) {
@@ -66,6 +69,53 @@ const routerFactory = (prisma) => {
     }
     const tokens = signTokens(user.id);
     res.json({ user: { id: user.id, email: user.email, name: user.name || null }, ...tokens });
+  });
+
+  router.post('/google', async (req, res) => {
+    const { idToken } = req.body || {};
+    if (!idToken || typeof idToken !== 'string') return res.status(400).json({ error: 'invalid_body' });
+    if (!googleClient) return res.status(500).json({ error: 'google_not_configured' });
+
+    try {
+      const ticket = await googleClient.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID });
+      const payload = ticket.getPayload() || {};
+
+      const googleSub = payload.sub;
+      const email = payload.email;
+      const name = payload.name || payload.given_name || null;
+      if (!googleSub || !email) return res.status(401).json({ error: 'invalid_token' });
+
+      let user = await prisma.user.findFirst({
+        where: { OR: [{ googleSub }, { email }] }
+      });
+
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            email,
+            passwordHash: null,
+            name,
+            emailVerified: true,
+            googleSub
+          }
+        });
+      } else {
+        // Link Google account to an existing user by email, and mark as verified
+        const patch = {};
+        if (!user.googleSub) patch.googleSub = googleSub;
+        if (!user.emailVerified) patch.emailVerified = true;
+        if (!user.name && name) patch.name = name;
+        if (Object.keys(patch).length) {
+          user = await prisma.user.update({ where: { id: user.id }, data: patch });
+        }
+      }
+
+      const tokens = signTokens(user.id);
+      res.json({ user: { id: user.id, email: user.email, name: user.name || null }, ...tokens });
+    } catch (e) {
+      console.error('google auth error', e);
+      res.status(401).json({ error: 'invalid_token' });
+    }
   });
 
   router.post('/refresh', async (req, res) => {
