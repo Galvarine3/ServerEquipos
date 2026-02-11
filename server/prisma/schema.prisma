@@ -63,6 +63,8 @@ model CommunityPost {
   createdAt DateTime @default(now())
   messages  Message[]
   groupMessages PostMessage[]
+
+  @@index([time], name: "CommunityPost_time_idx")
 }
 
 model Message {
@@ -76,6 +78,10 @@ model Message {
   post       CommunityPost? @relation(fields: [postId], references: [id])
   postId     String?
   createdAt  DateTime @default(now())
+
+  @@index([postId, time], name: "Message_postId_time_idx")
+  @@index([postId, fromUserId, time], name: "Message_postId_fromUserId_time_idx")
+  @@index([postId, toUserId, time], name: "Message_postId_toUserId_time_idx")
 }
 
 model PostMessage {
@@ -87,4 +93,6 @@ model PostMessage {
   text       String
   time       BigInt
   createdAt  DateTime @default(now())
+
+  @@index([postId, time], name: "PostMessage_postId_time_idx")
 }
