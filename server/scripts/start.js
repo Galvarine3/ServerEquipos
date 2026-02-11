@@ -18,12 +18,12 @@ function normalizeDatabaseUrl(url) {
   }
 }
 
-const rawUrl = process.env.DATABASE_PUBLIC_URL;
+const rawUrl = process.env.DATABASE_URL;
 const normalizedUrl = normalizeDatabaseUrl(rawUrl);
 
 if (rawUrl && normalizedUrl !== rawUrl) {
-  process.env.DATABASE_PUBLIC_URL = normalizedUrl;
-  console.log('DATABASE_PUBLIC_URL normalized (added sslmode=require)');
+  process.env.DATABASE_URL = normalizedUrl;
+  console.log('DATABASE_URL normalized (added sslmode=require)');
 }
 
 let prismaCliPath;
