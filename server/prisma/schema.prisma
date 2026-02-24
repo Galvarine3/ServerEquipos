@@ -67,7 +67,7 @@ model CommunityPost {
   groupMessages PostMessage[]
 
   @@index([latitude, longitude])
-  @@index([time])
+  @@index([time(sort: Desc)])
 }
 
 model Message {
