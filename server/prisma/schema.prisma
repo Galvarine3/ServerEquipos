@@ -67,6 +67,7 @@ model CommunityPost {
   groupMessages PostMessage[]
 
   @@index([latitude, longitude])
+  @@index([time])
 }
 
 model Message {
@@ -80,6 +81,10 @@ model Message {
   post       CommunityPost? @relation(fields: [postId], references: [id])
   postId     String?
   createdAt  DateTime       @default(now())
+
+  @@index([postId, fromUserId, time])
+  @@index([postId, time])
+  @@index([postId, toUserId, time])
 }
 
 model PostMessage {
