@@ -4,27 +4,27 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_PUBLIC_URL")
 }
 
 model User {
-  id             String          @id @default(uuid())
-  email          String          @unique
-  passwordHash   String?
-  googleSub      String?         @unique
-  name           String?
-  emailVerified  Boolean         @default(false)
-  verificationToken String?
+  id                 String          @id @default(uuid())
+  email              String          @unique
+  passwordHash       String?
+  googleSub          String?         @unique
+  name               String?
+  emailVerified      Boolean         @default(false)
+  verificationToken  String?
   verificationSentAt DateTime?
-  createdAt      DateTime        @default(now())
-  players        Player[]
-  matches        Match[]
-  communityPosts CommunityPost[]
+  createdAt          DateTime        @default(now())
+  players            Player[]
+  matches            Match[]
+  communityPosts     CommunityPost[]
 }
 
 model Player {
-  id           String  @id @default(uuid())
-  user         User    @relation(fields: [userId], references: [id])
+  id           String   @id @default(uuid())
+  user         User     @relation(fields: [userId], references: [id])
   userId       String
   name         String
   attack       Float
@@ -50,25 +50,27 @@ model Match {
 }
 
 model CommunityPost {
-  id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-  userName  String
-  sport     String
-  available Int
-  total     Int
-  message   String
-  locality  String
-  time      BigInt
-  createdAt DateTime @default(now())
-  messages  Message[]
+  id            String        @id @default(uuid())
+  user          User          @relation(fields: [userId], references: [id])
+  userId        String
+  userName      String
+  sport         String
+  available     Int
+  total         Int
+  message       String
+  locality      String
+  latitude      Float?
+  longitude     Float?
+  time          BigInt
+  createdAt     DateTime      @default(now())
+  messages      Message[]
   groupMessages PostMessage[]
 
-  @@index([time], name: "CommunityPost_time_idx")
+  @@index([latitude, longitude])
 }
 
 model Message {
-  id         String   @id @default(uuid())
+  id         String         @id @default(uuid())
   fromUserId String
   toUserId   String
   fromName   String
@@ -77,22 +79,16 @@ model Message {
   time       BigInt
   post       CommunityPost? @relation(fields: [postId], references: [id])
   postId     String?
-  createdAt  DateTime @default(now())
-
-  @@index([postId, time], name: "Message_postId_time_idx")
-  @@index([postId, fromUserId, time], name: "Message_postId_fromUserId_time_idx")
-  @@index([postId, toUserId, time], name: "Message_postId_toUserId_time_idx")
+  createdAt  DateTime       @default(now())
 }
 
 model PostMessage {
-  id         String   @id @default(uuid())
+  id         String        @id @default(uuid())
   post       CommunityPost @relation(fields: [postId], references: [id])
   postId     String
   fromUserId String
   fromName   String
   text       String
   time       BigInt
-  createdAt  DateTime @default(now())
-
-  @@index([postId, time], name: "PostMessage_postId_time_idx")
+  createdAt  DateTime      @default(now())
 }
