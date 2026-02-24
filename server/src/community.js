@@ -16,6 +16,17 @@ const routerFactory = (prisma, hub) => {
     };
   };
 
+  const EARTH_RADIUS_KM = 6371;
+  const toRadians = (deg) => (deg * Math.PI) / 180;
+  const haversineKm = (lat1, lon1, lat2, lon2) => {
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+      Math.sin(dLon / 2) ** 2;
+    return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(a));
+  };
+
   const postSchema = z.object({
     userName: z.string().min(0).default(''),
     sport: z.string().min(1),
@@ -23,14 +34,54 @@ const routerFactory = (prisma, hub) => {
     total: z.number().int().positive(),
     message: z.string().min(0).default(''),
     locality: z.string().min(1),
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
     time: z.bigint().or(z.number().int()).transform(v => BigInt(v))
-  }).refine(d => d.available <= d.total, { message: 'available_lte_total' });
+  })
+    .refine(d => d.available == null || d.total == null || d.available <= d.total, { message: 'available_lte_total' })
+    .refine(d => (d.latitude == null && d.longitude == null) || (d.latitude != null && d.longitude != null), { message: 'lat_lng_pair' });
+
+  const nearbyQuerySchema = z.object({
+    lat: z.coerce.number().min(-90).max(90),
+    lng: z.coerce.number().min(-180).max(180),
+    radiusKm: z.coerce.number().positive().max(200).default(10),
+    limit: z.coerce.number().int().positive().max(200).optional()
+  });
 
   router.get('/posts', async (_req, res) => {
     const list = await prisma.communityPost.findMany({
       orderBy: { time: 'desc' }
     });
     res.json(list.map(toClientPost));
+  });
+
+  router.get('/posts/nearby', async (req, res) => {
+    const parse = nearbyQuerySchema.safeParse(req.query);
+    if (!parse.success) return res.status(400).json({ error: 'invalid_query' });
+    const { lat, lng, radiusKm, limit } = parse.data;
+    const latDelta = radiusKm / 111.32;
+    const cosLat = Math.cos(toRadians(lat));
+    const lngDelta = radiusKm / (111.32 * (cosLat === 0 ? 1 : cosLat));
+    const candidateLimit = Math.min((limit || 50) * 5, 500);
+
+    const candidates = await prisma.communityPost.findMany({
+      where: {
+        latitude: { not: null, gte: lat - latDelta, lte: lat + latDelta },
+        longitude: { not: null, gte: lng - lngDelta, lte: lng + lngDelta }
+      },
+      orderBy: { time: 'desc' },
+      take: candidateLimit
+    });
+
+    const results = candidates
+      .map((post) => {
+        const distanceKm = haversineKm(lat, lng, post.latitude, post.longitude);
+        return { ...toClientPost(post), distanceKm };
+      })
+      .filter((post) => post.distanceKm <= radiusKm)
+      .sort((a, b) => (a.distanceKm - b.distanceKm) || (b.time - a.time));
+
+    res.json(limit ? results.slice(0, limit) : results);
   });
 
   router.post('/posts', async (req, res) => {
@@ -47,6 +98,8 @@ const routerFactory = (prisma, hub) => {
           total: data.total,
           message: data.message || '',
           locality: data.locality,
+          latitude: data.latitude ?? null,
+          longitude: data.longitude ?? null,
           time: data.time
         }
       });
