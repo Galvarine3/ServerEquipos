@@ -8,6 +8,7 @@ const playersRoutes = require('./players');
 const matchesRoutes = require('./matches');
 const communityRoutes = require('./community');
 const messagesRoutes = require('./messages');
+const friendsRoutes = require('./friends');
 const { initWS } = require('./ws');
 
 const app = express();
@@ -37,6 +38,7 @@ app.use('/players', playersRoutes(prisma));
 app.use('/matches', matchesRoutes(prisma));
 app.use('/community', communityRoutes(prisma, hub));
 app.use('/messages', messagesRoutes(prisma, hub));
+app.use('/friends', friendsRoutes(prisma));
 
 const port = process.env.PORT || 3000;
 server.listen(port, () => {
