@@ -15,6 +15,10 @@ const routerFactory = (prisma, hub) => {
       time: typeof post.time === 'bigint' ? Number(post.time) : post.time,
     };
   };
+  const nameFromUser = (u, fallback = '') => {
+    if (!u) return fallback;
+    return u.name || u.email || fallback;
+  };
 
   const EARTH_RADIUS_KM = 6371;
   const toRadians = (deg) => (deg * Math.PI) / 180;
@@ -53,6 +57,61 @@ const routerFactory = (prisma, hub) => {
       orderBy: { time: 'desc' }
     });
     res.json(list.map(toClientPost));
+  });
+
+  // List distinct community users with friendship status
+  router.get('/users', async (req, res) => {
+    const posts = await prisma.communityPost.findMany({
+      select: { userId: true, userName: true, time: true },
+      orderBy: { time: 'desc' },
+      distinct: ['userId']
+    });
+    const ids = posts.map(p => p.userId).filter(Boolean);
+    const users = await prisma.user.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true, email: true }
+    });
+    const userMap = new Map(users.map(u => [u.id, u]));
+    const otherIds = ids.filter(id => id !== req.userId);
+    const friends = await prisma.friend.findMany({
+      where: { userId: req.userId, friendUserId: { in: otherIds } },
+      select: { friendUserId: true }
+    });
+    const outgoing = await prisma.friendRequest.findMany({
+      where: { fromUserId: req.userId, toUserId: { in: otherIds } },
+      select: { id: true, toUserId: true }
+    });
+    const incoming = await prisma.friendRequest.findMany({
+      where: { toUserId: req.userId, fromUserId: { in: otherIds } },
+      select: { id: true, fromUserId: true }
+    });
+    const friendSet = new Set(friends.map(f => f.friendUserId));
+    const outgoingSet = new Set(outgoing.map(r => r.toUserId));
+    const incomingSet = new Set(incoming.map(r => r.fromUserId));
+    const outgoingMap = new Map(outgoing.map(r => [r.toUserId, r.id]));
+    const incomingMap = new Map(incoming.map(r => [r.fromUserId, r.id]));
+
+    const result = posts.map((p) => {
+      const u = userMap.get(p.userId);
+      const name = nameFromUser(u, p.userName || '');
+      let status = 'none';
+      if (p.userId === req.userId) status = 'self';
+      else if (friendSet.has(p.userId)) status = 'friend';
+      else if (outgoingSet.has(p.userId)) status = 'outgoing';
+      else if (incomingSet.has(p.userId)) status = 'incoming';
+      return {
+        userId: p.userId,
+        name,
+        lastPostTime: typeof p.time === 'bigint' ? Number(p.time) : p.time,
+        status,
+        requestId: status === 'incoming'
+          ? incomingMap.get(p.userId) || null
+          : status === 'outgoing'
+            ? outgoingMap.get(p.userId) || null
+            : null
+      };
+    });
+    res.json(result);
   });
 
   router.get('/posts/nearby', async (req, res) => {
