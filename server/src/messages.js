@@ -6,18 +6,6 @@ const routerFactory = (prisma, hub) => {
   const router = express.Router();
   router.use(authMiddleware);
 
-  const parseLimit = (v, { def = 200, max = 500 } = {}) => {
-    const n = Number.parseInt((v ?? '').toString(), 10);
-    if (!Number.isFinite(n) || n <= 0) return def;
-    return Math.min(n, max);
-  };
-
-  const parseBefore = (v) => {
-    const n = Number.parseInt((v ?? '').toString(), 10);
-    if (!Number.isFinite(n) || n <= 0) return null;
-    return BigInt(n);
-  };
-
   // Helper: convert BigInt fields to JSON-serializable values
   const toClientMessage = (m) => {
     if (!m) return m;
@@ -41,43 +29,29 @@ const routerFactory = (prisma, hub) => {
     const postId = (req.query.postId || '').toString();
     if (!otherId) return res.status(400).json({ error: 'withUser_required' });
     if (!postId) return res.status(400).json({ error: 'postId_required' });
-
-    // Pagination: return the most recent messages by default (prevents OOM on large threads)
-    const limit = parseLimit(req.query.limit, { def: 200, max: 500 });
-    const before = parseBefore(req.query.before);
-
     const list = await prisma.message.findMany({
       where: {
         postId,
         OR: [
           { fromUserId: req.userId, toUserId: otherId },
           { fromUserId: otherId, toUserId: req.userId }
-        ],
-        ...(before ? { time: { lt: before } } : {})
+        ]
       },
-      orderBy: { time: 'desc' },
-      take: limit
+      orderBy: { time: 'asc' }
     });
-
-    // Client expects ascending order
-    res.json(list.reverse().map(toClientMessage));
+    res.json(list.map(toClientMessage));
+    return res.end();
   });
 
   // Shared post chat: GET history
   router.get('/posts/:id', async (req, res) => {
     const postId = req.params.id;
     if (!postId) return res.status(400).json({ error: 'postId_required' });
-
-    const limit = parseLimit(req.query.limit, { def: 200, max: 500 });
-    const before = parseBefore(req.query.before);
-
     const list = await prisma.postMessage.findMany({
-      where: { postId, ...(before ? { time: { lt: before } } : {}) },
-      orderBy: { time: 'desc' },
-      take: limit
+      where: { postId },
+      orderBy: { time: 'asc' }
     });
-
-    res.json(list.reverse().map(toClientPostMessage));
+    res.json(list.map(toClientPostMessage));
   });
 
   // Shared post chat: POST new message
@@ -116,10 +90,6 @@ const routerFactory = (prisma, hub) => {
     const postId = (req.query.postId || '').toString();
     if (!postId) return res.status(400).json({ error: 'postId_required' });
     const uid = req.userId;
-
-    // Cap scanned messages for performance; list is ordered desc so first per partner is latest.
-    const scanLimit = parseLimit(req.query.scanLimit, { def: 5000, max: 20000 });
-
     const list = await prisma.message.findMany({
       where: {
         postId,
@@ -128,18 +98,18 @@ const routerFactory = (prisma, hub) => {
           { toUserId: uid }
         ]
       },
-      orderBy: { time: 'desc' },
-      take: scanLimit
+      orderBy: { time: 'desc' }
     });
     // Reduce to distinct partner threads with latest message
     const threads = new Map(); // partnerId -> { userId, userName, lastText, time }
     for (const m of list) {
       const isOutgoing = m.fromUserId === uid;
       const partnerId = isOutgoing ? m.toUserId : m.fromUserId;
-      if (threads.has(partnerId)) continue; // already have newest (list is desc)
       const partnerName = isOutgoing ? (m.toName || '') : (m.fromName || '');
       const t = typeof m.time === 'bigint' ? Number(m.time) : m.time;
-      threads.set(partnerId, { userId: partnerId, userName: partnerName, lastText: m.text, time: t });
+      if (!threads.has(partnerId) || threads.get(partnerId).time < t) {
+        threads.set(partnerId, { userId: partnerId, userName: partnerName, lastText: m.text, time: t });
+      }
     }
     const arr = Array.from(threads.values()).sort((a, b) => b.time - a.time);
     res.json(arr);
