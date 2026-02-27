@@ -29,9 +29,10 @@ const routerFactory = (prisma, hub) => {
     const postId = (req.query.postId || '').toString();
     if (!otherId) return res.status(400).json({ error: 'withUser_required' });
     if (!postId) return res.status(400).json({ error: 'postId_required' });
+    const isDm = postId.startsWith('dm:');
     const list = await prisma.message.findMany({
       where: {
-        postId,
+        ...(isDm ? { threadId: postId } : { postId }),
         OR: [
           { fromUserId: req.userId, toUserId: otherId },
           { fromUserId: otherId, toUserId: req.userId }
@@ -90,9 +91,10 @@ const routerFactory = (prisma, hub) => {
     const postId = (req.query.postId || '').toString();
     if (!postId) return res.status(400).json({ error: 'postId_required' });
     const uid = req.userId;
+    const isDm = postId.startsWith('dm:');
     const list = await prisma.message.findMany({
       where: {
-        postId,
+        ...(isDm ? { threadId: postId } : { postId }),
         OR: [
           { fromUserId: uid },
           { toUserId: uid }
@@ -130,6 +132,7 @@ const routerFactory = (prisma, hub) => {
     if (!parse.success) return res.status(400).json({ error: 'invalid_body' });
     const data = parse.data;
     try {
+      const isDm = (data.postId || '').startsWith('dm:');
       const saved = await prisma.message.create({
         data: {
           fromUserId: req.userId,
@@ -138,8 +141,8 @@ const routerFactory = (prisma, hub) => {
           toName: data.toName || '',
           text: data.text,
           time: BigInt(data.time || Date.now()),
-          // Don't enforce CommunityPost relation here; DM uses synthetic postId (e.g. dm:<a>|<b>)
-          postId: data.postId
+          threadId: isDm ? data.postId : null,
+          postId: isDm ? null : data.postId
         }
       });
       const clientMsg = toClientMessage(saved);
