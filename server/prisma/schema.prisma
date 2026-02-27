@@ -82,6 +82,7 @@ model Message {
   toName     String
   text       String
   time       BigInt
+  threadId   String?
   post       CommunityPost? @relation(fields: [postId], references: [id])
   postId     String?
   createdAt  DateTime       @default(now())
@@ -89,6 +90,8 @@ model Message {
   @@index([postId, fromUserId, time])
   @@index([postId, time])
   @@index([postId, toUserId, time])
+  @@index([threadId, fromUserId, time])
+  @@index([threadId, toUserId, time])
 }
 
 model PostMessage {
