@@ -138,6 +138,7 @@ const routerFactory = (prisma, hub) => {
           toName: data.toName || '',
           text: data.text,
           time: BigInt(data.time || Date.now()),
+          // Don't enforce CommunityPost relation here; DM uses synthetic postId (e.g. dm:<a>|<b>)
           postId: data.postId
         }
       });
@@ -150,7 +151,7 @@ const routerFactory = (prisma, hub) => {
       } catch (_) {}
       res.status(201).json(clientMsg);
     } catch (e) {
-      res.status(400).json({ error: 'create_failed' });
+      res.status(400).json({ error: 'create_failed', detail: (e && e.message) ? String(e.message).slice(0, 200) : '' });
     }
   });
 
