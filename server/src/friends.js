@@ -134,6 +134,40 @@ const routerFactory = (prisma) => {
     }
   });
 
+  // DELETE /friends/:userId - remove friend (agenda)
+  router.delete('/:userId', async (req, res) => {
+    const targetUserId = req.params.userId;
+    if (!targetUserId || targetUserId === req.userId) {
+      return res.status(400).json({ error: 'invalid_user' });
+    }
+
+    const target = await prisma.user.findUnique({ where: { id: targetUserId } });
+    if (!target) return res.status(404).json({ error: 'user_not_found' });
+
+    const existing = await prisma.friend.findFirst({
+      where: { userId: req.userId, friendUserId: targetUserId }
+    });
+    if (!existing) return res.status(404).json({ error: 'not_friends' });
+
+    try {
+      await prisma.$transaction([
+        prisma.friend.deleteMany({ where: { userId: req.userId, friendUserId: targetUserId } }),
+        prisma.friend.deleteMany({ where: { userId: targetUserId, friendUserId: req.userId } }),
+        prisma.friendRequest.deleteMany({
+          where: {
+            OR: [
+              { fromUserId: req.userId, toUserId: targetUserId },
+              { fromUserId: targetUserId, toUserId: req.userId }
+            ]
+          }
+        })
+      ]);
+      return res.json({ status: 'deleted' });
+    } catch (e) {
+      return res.status(400).json({ error: 'delete_failed' });
+    }
+  });
+
   return router;
 };
 
