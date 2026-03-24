@@ -113,6 +113,23 @@ function initWS(server, prisma) {
           };
           // broadcast to all clients; clients filter by postId
           broadcast(payload);
+        } else if (
+          msg.type === 'game_invite' ||
+          msg.type === 'game_invite_response' ||
+          msg.type === 'game_state' ||
+          msg.type === 'game_input' ||
+          msg.type === 'game_leave'
+        ) {
+          const { toUserId } = msg;
+          if (!toUserId) return;
+          const payload = {
+            type: msg.type,
+            data: {
+              ...msg,
+              fromUserId: userId,
+            },
+          };
+          sendToUser(toUserId, payload);
         }
       } catch (_) {}
     });
