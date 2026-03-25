@@ -117,6 +117,7 @@ function initWS(server, prisma) {
           msg.type === 'game_invite' ||
           msg.type === 'game_invite_response' ||
           msg.type === 'game_state' ||
+          msg.type === 'game_meta' ||
           msg.type === 'game_input' ||
           msg.type === 'game_leave'
         ) {
