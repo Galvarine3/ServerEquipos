@@ -372,6 +372,7 @@ class CrashBallsRoom extends Room {
 
     if (this.state.players.size < 2) {
       this.state.phase = "waiting";
+      this.maybePublishBridgeSnapshot();
       return;
     }
 
@@ -381,6 +382,7 @@ class CrashBallsRoom extends Room {
         this.state.phase = "playing";
         this.state.statusText = "Match in progress";
       }
+      this.maybePublishBridgeSnapshot();
       return;
     }
 
