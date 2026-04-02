@@ -1,12 +1,11 @@
-const jwt = require('jsonwebtoken');
+const { extractBearerToken, verifyAccessToken } = require("./game/auth");
 
 function authMiddleware(req, res, next) {
-  const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
-  const h = req.headers['authorization'] || '';
-  const token = h.startsWith('Bearer ') ? h.slice(7) : null;
+  const h = req.headers["authorization"] || "";
+  const token = extractBearerToken(h);
   if (!token) return res.status(401).json({ error: 'unauthorized' });
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = verifyAccessToken(token);
     req.userId = payload.uid;
     next();
   } catch {
