@@ -1,9 +1,8 @@
 const { WebSocketServer } = require('ws');
-const jwt = require('jsonwebtoken');
+const { extractBearerToken, verifyAccessToken } = require("./game/auth");
 
 function initWS(server, prisma) {
   const wss = new WebSocketServer({ server, path: '/ws' });
-  const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
 
   // userId -> Set<WebSocket>
   const userSockets = new Map();
@@ -45,14 +44,14 @@ function initWS(server, prisma) {
     // Auth via header or query ?token=
     let token = null;
     const auth = req.headers['authorization'] || '';
-    if (auth.startsWith('Bearer ')) token = auth.slice(7);
+    token = extractBearerToken(auth);
     if (!token) {
       const url = new URL(req.url, 'http://localhost');
       token = url.searchParams.get('token');
     }
     let userId = null;
     try {
-      const payload = jwt.verify(token || '', JWT_SECRET);
+      const payload = verifyAccessToken(token || "");
       userId = payload.uid;
     } catch (_) {
       ws.close(4401, 'unauthorized');
