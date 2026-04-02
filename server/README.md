@@ -1,55 +1,48 @@
 # Equipos Backend (Node + PostgreSQL)
 
-Express + Prisma + JWT. Pensado para usarse con la APK (la webapp sigue local).
+Express + Prisma + JWT. Pensado para usarse con la APK.
 
 ## Requisitos
-- Node 18+
-- PostgreSQL (Render u otro proveedor)
+- Node 20+
+- PostgreSQL
 
-## Variables de Entorno
+## Variables de entorno
 Copia `.env.example` a `.env` y completa:
 - `DATABASE_URL` URL de Postgres
 - `JWT_SECRET` secreto fuerte
-- `PORT` (opcional, Render lo inyecta)
-- `GOOGLE_CLIENT_ID` (opcional) Client ID para login Google (audience del ID token)
-- `APP_BASE_URL` (opcional) URL base para links de verificación (por defecto `http://localhost:3000`)
+- `PORT` puerto del API principal
+- `GAME_PORT` puerto del servidor Colyseus de `Crash Balls`
+- `GOOGLE_CLIENT_ID` Client ID para login Google
+- `APP_BASE_URL` URL base para links de verificacion
 
 ## Scripts
-- `npm run dev` desarrollo (nodemon)
-- `npm run start` producción
+- `npm run dev` desarrollo del API principal
+- `npm run start` produccion del API principal
+- `npm run game:dev` desarrollo del servidor Colyseus
+- `npm run game:start` produccion del servidor Colyseus
 - `npm run prisma:generate` generar cliente Prisma
-- `npm run prisma:migrate` aplicar migraciones en producción
+- `npm run prisma:migrate` aplicar migraciones
 
-## Despliegue en Render
-1. Sube esta carpeta `server/` como repo en GitHub (o raíz del repo).
-2. Crea un Web Service en Render apuntando a ese repo.
-3. Build Command:
-```
-npm ci && npx prisma generate && npm run prisma:migrate
-```
-4. Start Command:
-```
-npm run start
-```
-5. Configura variables: `DATABASE_URL`, `JWT_SECRET`.
-6. (Opcional) Crea una Base de Datos PostgreSQL en Render y usa su `DATABASE_URL`.
+## API principal
+- Archivo de entrada: `src/app.js`
+- WebSocket actual de comunidad/chat: `src/ws.js`
+- Endpoints principales:
+  `POST /auth/register`
+  `POST /auth/login`
+  `POST /auth/google`
+  `POST /auth/refresh`
+  `GET /players`
+  `GET /matches`
 
-## Endpoints
-- `POST /auth/register` { email, password, name }
-- `POST /auth/login` { email, password }
-- `POST /auth/google` { idToken }
-- `POST /auth/refresh` { refreshToken }
-- `GET /players` (Auth)
-- `POST /players` (Auth)
-- `PUT /players/:id` (Auth)
-- `DELETE /players/:id` (Auth)
-- `POST /players/bulk` (Auth, upsert por nombre)
-- `GET /matches` (Auth)
-- `POST /matches` (Auth)
-- `PUT /matches/:id` (Auth)
-- `DELETE /matches/:id` (Auth)
+## Crash Balls realtime
+- Archivo de entrada: `src/game-server.js`
+- Framework: Colyseus
+- Sala base: `crash-balls`
+- Matchmaking: filtro por `roomKey`
+- Autenticacion: reutiliza el mismo `Bearer` JWT del backend actual
+- Reconexion: la sala permite reconectar durante 20 segundos
 
-## Notas
-- Los datos se aíslan por usuario (`userId`).
-- `players.userId + name` es único para facilitar upsert.
-- `teamA`/`teamB` son JSON (puedes guardar arrays de objetos con `name`, `isGoalkeeper`, etc.).
+## Estado de la migracion
+- Ya existe una base de servidor autoritativo con fisica simple, marcador, countdown y reconexion.
+- Falta migrar el cliente Android al protocolo de Colyseus o agregar un puente compatible con Kotlin.
+- La documentacion oficial de Colyseus no ofrece hoy un SDK nativo oficial para Android/Kotlin, asi que esa integracion requiere una decision aparte antes de retirar el flujo actual.
