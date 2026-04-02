@@ -18,6 +18,7 @@ const BALL_DAMPING = 0.992;
 const KICK_POWER = 680;
 const COUNTDOWN_TICKS = 120;
 const MAX_SCORE = 3;
+const BRIDGE_SNAPSHOT_INTERVAL = 33;
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -55,6 +56,9 @@ class CrashBallsRoom extends Room {
     this.prisma = options.prisma || null;
     this.maxClients = 2;
     this.autoDispose = true;
+    this.bridgeClients = new Map();
+    this.bridgeReconnectTimers = new Map();
+    this.lastBridgeSnapshotAt = 0;
     this.setState(new CrashBallsRoomState());
     this.state.roomKey = String(options.roomKey || "");
     this.state.maxScore = MAX_SCORE;
@@ -151,7 +155,181 @@ class CrashBallsRoom extends Room {
   }
 
   onDispose() {
+    for (const timer of this.bridgeReconnectTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.bridgeReconnectTimers.clear();
+    this.bridgeClients.clear();
     this.clock.clear();
+  }
+
+  bridgeJoin(ws, auth) {
+    const playerKey = this.getBridgePlayerKey(auth.userId);
+    const existingTimer = this.bridgeReconnectTimers.get(playerKey);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      this.bridgeReconnectTimers.delete(playerKey);
+    }
+
+    let player = this.state.players.get(playerKey);
+    if (!player) {
+      player = new CrashBallsPlayerState();
+      player.sessionId = playerKey;
+      player.userId = auth.userId;
+      player.name = auth.name || "Jugador";
+      player.side = this.getOpenSide();
+      this.state.players.set(playerKey, player);
+    }
+
+    player.connected = true;
+    player.inputX = 0;
+    player.inputY = 0;
+    this.placePlayer(player);
+    this.bridgeClients.set(playerKey, ws);
+    this.state.statusText = `${player.name} joined the bridge room`;
+
+    this.sendBridgeMessage(ws, "room_ready", {
+      roomId: this.roomId,
+      roomKey: this.state.roomKey,
+      side: player.side,
+      field: {
+        width: FIELD_WIDTH,
+        height: FIELD_HEIGHT,
+      },
+    });
+    this.sendSnapshotToBridgeClient(playerKey);
+
+    if (this.connectedBridgePlayerCount() === 2) {
+      this.startMatch();
+    }
+
+    return {
+      playerKey,
+      roomId: this.roomId,
+      roomKey: this.state.roomKey,
+      side: player.side,
+    };
+  }
+
+  bridgeLeave(userId) {
+    const playerKey = this.getBridgePlayerKey(userId);
+    this.bridgeClients.delete(playerKey);
+
+    const player = this.state.players.get(playerKey);
+    if (!player) {
+      return;
+    }
+
+    player.connected = false;
+    player.inputX = 0;
+    player.inputY = 0;
+    this.state.phase = "paused";
+    this.state.statusText = `${player.name} disconnected. Waiting for reconnection`;
+
+    const reconnectTimer = setTimeout(() => {
+      this.bridgeReconnectTimers.delete(playerKey);
+      this.state.players.delete(playerKey);
+
+      if (this.state.players.size === 0) {
+        void this.disconnect();
+      } else {
+        this.state.statusText = `${player.name} left the match`;
+      }
+    }, 20000);
+
+    this.bridgeReconnectTimers.set(playerKey, reconnectTimer);
+  }
+
+  bridgeInput(userId, input = {}) {
+    const player = this.state.players.get(this.getBridgePlayerKey(userId));
+    if (!player || !player.connected) {
+      return;
+    }
+
+    player.inputX = clamp(Number(input.x) || 0, -1, 1);
+    player.inputY = clamp(Number(input.y) || 0, -1, 1);
+    player.inputSeq = Number(input.seq) || player.inputSeq;
+  }
+
+  sendBridgeMessage(ws, type, data) {
+    if (!ws || ws.readyState !== 1) {
+      return;
+    }
+
+    try {
+      ws.send(JSON.stringify({ type, data }));
+    } catch (_error) {}
+  }
+
+  sendBridgeMessageToAll(type, data) {
+    for (const ws of this.bridgeClients.values()) {
+      this.sendBridgeMessage(ws, type, data);
+    }
+  }
+
+  sendSnapshotToBridgeClient(playerKey) {
+    const ws = this.bridgeClients.get(playerKey);
+    const player = this.state.players.get(playerKey);
+    if (!ws || !player) {
+      return;
+    }
+
+    this.sendBridgeMessage(ws, "game_state", this.buildSnapshotForPlayer(player));
+  }
+
+  publishBridgeSnapshot() {
+    for (const playerKey of this.bridgeClients.keys()) {
+      this.sendSnapshotToBridgeClient(playerKey);
+    }
+  }
+
+  buildSnapshotForPlayer(player) {
+    const rival = Array.from(this.state.players.values()).find((entry) => entry.userId !== player.userId) || null;
+    return {
+      roomId: this.roomId,
+      roomKey: this.state.roomKey,
+      tick: this.state.tick,
+      phase: this.state.phase,
+      statusText: this.state.statusText,
+      blueScore: player.side === "left" ? this.state.scoreLeft : this.state.scoreRight,
+      redScore: player.side === "left" ? this.state.scoreRight : this.state.scoreLeft,
+      resetTimer: this.state.resetTimer,
+      self: {
+        side: player.side,
+        x: player.x,
+        y: player.y,
+        vx: player.vx,
+        vy: player.vy,
+        inputSeq: player.inputSeq,
+      },
+      rival: rival ? {
+        side: rival.side,
+        x: rival.x,
+        y: rival.y,
+        vx: rival.vx,
+        vy: rival.vy,
+        connected: rival.connected,
+        name: rival.name,
+      } : null,
+      ball: {
+        x: this.state.ball.x,
+        y: this.state.ball.y,
+        vx: this.state.ball.vx,
+        vy: this.state.ball.vy,
+      },
+      field: {
+        width: FIELD_WIDTH,
+        height: FIELD_HEIGHT,
+      },
+    };
+  }
+
+  connectedBridgePlayerCount() {
+    return Array.from(this.state.players.values()).filter((player) => player.connected).length;
+  }
+
+  getBridgePlayerKey(userId) {
+    return `bridge:${userId}`;
   }
 
   getOpenSide() {
@@ -207,6 +385,7 @@ class CrashBallsRoom extends Room {
     }
 
     if (this.state.phase !== "playing") {
+      this.maybePublishBridgeSnapshot();
       return;
     }
 
@@ -218,6 +397,16 @@ class CrashBallsRoom extends Room {
     this.updateBall(dt);
     this.resolveBallAgainstPlayers();
     this.resolveGoals();
+    this.maybePublishBridgeSnapshot();
+  }
+
+  maybePublishBridgeSnapshot() {
+    const now = Date.now();
+    if (now - this.lastBridgeSnapshotAt < BRIDGE_SNAPSHOT_INTERVAL) {
+      return;
+    }
+    this.lastBridgeSnapshotAt = now;
+    this.publishBridgeSnapshot();
   }
 
   updatePlayer(player, dt) {
@@ -338,6 +527,11 @@ class CrashBallsRoom extends Room {
         this.state.scoreLeft > this.state.scoreRight
           ? `${leftName} wins`
           : `${rightName} wins`;
+      this.sendBridgeMessageToAll("match_finished", {
+        winnerSide: this.state.scoreLeft > this.state.scoreRight ? "left" : "right",
+        scoreLeft: this.state.scoreLeft,
+        scoreRight: this.state.scoreRight,
+      });
       this.broadcast("match_finished", {
         winnerSide: this.state.scoreLeft > this.state.scoreRight ? "left" : "right",
         scoreLeft: this.state.scoreLeft,
