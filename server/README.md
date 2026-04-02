@@ -12,6 +12,7 @@ Copia `.env.example` a `.env` y completa:
 - `JWT_SECRET` secreto fuerte
 - `PORT` puerto del API principal
 - `GAME_PORT` puerto del servidor Colyseus de `Crash Balls`
+- `GAME_BRIDGE_PORT` puerto del WebSocket JSON para Android
 - `GOOGLE_CLIENT_ID` Client ID para login Google
 - `APP_BASE_URL` URL base para links de verificacion
 
@@ -41,8 +42,9 @@ Copia `.env.example` a `.env` y completa:
 - Matchmaking: filtro por `roomKey`
 - Autenticacion: reutiliza el mismo `Bearer` JWT del backend actual
 - Reconexion: la sala permite reconectar durante 20 segundos
+- Puente Android: WebSocket JSON en `/crash-balls-bridge`
 
 ## Estado de la migracion
 - Ya existe una base de servidor autoritativo con fisica simple, marcador, countdown y reconexion.
-- Falta migrar el cliente Android al protocolo de Colyseus o agregar un puente compatible con Kotlin.
-- La documentacion oficial de Colyseus no ofrece hoy un SDK nativo oficial para Android/Kotlin, asi que esa integracion requiere una decision aparte antes de retirar el flujo actual.
+- Ya existe un puente WebSocket JSON para que Android no tenga que hablar el protocolo binario de Colyseus.
+- Falta conectar `MainActivity.kt` a este puente nuevo y retirar el flujo peer-to-peer actual.
