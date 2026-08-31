@@ -140,6 +140,8 @@
     <string name="community_title">Community</string>
     <string name="post_message_label">Message</string>
     <string name="sport_label">Sport</string>
+    <string name="team_a_color_label">Team A color</string>
+    <string name="team_b_color_label">Team B color</string>
     <string name="sport_futbolito">Futbolito</string>
     <string name="available_players">Available</string>
     <string name="total_players">Total</string>

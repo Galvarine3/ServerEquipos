@@ -8,18 +8,30 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  name         String?
-  createdAt    DateTime @default(now())
-  players      Player[]
-  matches      Match[]
+  id                 String          @id @default(uuid())
+  email              String          @unique
+  passwordHash       String?
+  googleSub          String?         @unique
+  name               String?
+  emailVerified      Boolean         @default(false)
+  verificationToken  String?
+  verificationSentAt DateTime?
+  createdAt          DateTime        @default(now())
+  players            Player[]
+  matches            Match[]
+  communityPosts     CommunityPost[]
+  sentFriendRequests FriendRequest[] @relation("FriendRequest_from")
+  receivedRequests   FriendRequest[] @relation("FriendRequest_to")
+  friends            Friend[]        @relation("Friend_user")
+  friendOf           Friend[]        @relation("Friend_friend")
+  teams              Team[]
+  tournaments        Tournament[]
+  leagues            League[]
 }
 
 model Player {
-  id           String  @id @default(uuid())
-  user         User    @relation(fields: [userId], references: [id])
+  id           String   @id @default(uuid())
+  user         User     @relation(fields: [userId], references: [id])
   userId       String
   name         String
   attack       Float
@@ -32,39 +44,134 @@ model Player {
 }
 
 model Match {
-  id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-  time      BigInt
-  titleA    String
-  titleB    String
-  teamA     Json
-  teamB     Json
-  result    String   @default("")
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  time       BigInt
+  titleA     String
+  titleB     String
+  teamA      Json
+  teamB      Json
+  result     String   @default("")
+  updatedAt  DateTime @updatedAt
+  externalId String?
+
+  @@unique([userId, externalId])
+}
+
+model Team {
+  id         String   @id @default(uuid())
+  externalId String
+  userId     String
+  name       String
+  players    Json
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, externalId])
+  @@index([userId])
+}
+
+model Tournament {
+  id         String   @id @default(uuid())
+  externalId String
+  userId     String
+  name       String
+  time       BigInt
+  data       Json
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, externalId])
+  @@index([userId])
+}
+
+model League {
+  id         String   @id @default(uuid())
+  externalId String
+  userId     String
+  name       String
+  time       BigInt
+  data       Json
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, externalId])
+  @@index([userId])
 }
 
 model CommunityPost {
-  id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-  userName  String
-  sport     String
-  available Int
-  total     Int
-  message   String
-  locality  String
-  time      BigInt
-  createdAt DateTime @default(now())
+  id            String        @id @default(uuid())
+  user          User          @relation(fields: [userId], references: [id])
+  userId        String
+  userName      String
+  sport         String
+  available     Int
+  total         Int
+  message       String
+  locality      String
+  latitude      Float?
+  longitude     Float?
+  time          BigInt
+  createdAt     DateTime      @default(now())
+  messages      Message[]
+  groupMessages PostMessage[]
+
+  @@index([latitude, longitude])
+  @@index([time(sort: Desc)])
 }
 
 model Message {
-  id         String   @id @default(uuid())
+  id         String         @id @default(uuid())
   fromUserId String
   toUserId   String
   fromName   String
   toName     String
   text       String
   time       BigInt
+  threadId   String?
+  post       CommunityPost? @relation(fields: [postId], references: [id])
+  postId     String?
+  createdAt  DateTime       @default(now())
+
+  @@index([postId, fromUserId, time])
+  @@index([postId, time])
+  @@index([postId, toUserId, time])
+  @@index([threadId, fromUserId, time])
+  @@index([threadId, toUserId, time])
+}
+
+model PostMessage {
+  id         String        @id @default(uuid())
+  post       CommunityPost @relation(fields: [postId], references: [id])
+  postId     String
+  fromUserId String
+  fromName   String
+  text       String
+  time       BigInt
+  createdAt  DateTime      @default(now())
+}
+
+model FriendRequest {
+  id         String   @id @default(uuid())
+  fromUser   User     @relation("FriendRequest_from", fields: [fromUserId], references: [id])
+  fromUserId String
+  toUser     User     @relation("FriendRequest_to", fields: [toUserId], references: [id])
+  toUserId   String
   createdAt  DateTime @default(now())
+
+  @@unique([fromUserId, toUserId])
+  @@index([toUserId])
+}
+
+model Friend {
+  id           String   @id @default(uuid())
+  user         User     @relation("Friend_user", fields: [userId], references: [id])
+  userId       String
+  friend       User     @relation("Friend_friend", fields: [friendUserId], references: [id])
+  friendUserId String
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, friendUserId])
+  @@index([friendUserId])
 }

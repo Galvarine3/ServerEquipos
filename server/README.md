@@ -11,6 +11,8 @@ Copia `.env.example` a `.env` y completa:
 - `DATABASE_URL` URL de Postgres
 - `JWT_SECRET` secreto fuerte
 - `PORT` (opcional, Render lo inyecta)
+- `GOOGLE_CLIENT_ID` (opcional) Client ID para login Google (audience del ID token)
+- `APP_BASE_URL` (opcional) URL base para links de verificación (por defecto `http://localhost:3000`)
 
 ## Scripts
 - `npm run dev` desarrollo (nodemon)
@@ -33,8 +35,9 @@ npm run start
 6. (Opcional) Crea una Base de Datos PostgreSQL en Render y usa su `DATABASE_URL`.
 
 ## Endpoints
-- `POST /auth/register` { email, password }
+- `POST /auth/register` { email, password, name }
 - `POST /auth/login` { email, password }
+- `POST /auth/google` { idToken }
 - `POST /auth/refresh` { refreshToken }
 - `GET /players` (Auth)
 - `POST /players` (Auth)

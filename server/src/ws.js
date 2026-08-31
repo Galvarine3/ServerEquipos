@@ -66,7 +66,7 @@ function initWS(server, prisma) {
         const msg = JSON.parse(raw.toString());
         // Handle chat send
         if (msg.type === 'message_send') {
-          const { toUserId, toName, fromName, text, time } = msg;
+          const { toUserId, toName, fromName, text, time, postId } = msg;
           if (!toUserId || !text) return;
           const t = BigInt(time || Date.now());
           const saved = await prisma.message.create({
@@ -76,13 +76,43 @@ function initWS(server, prisma) {
               fromName: fromName || '',
               toName: toName || '',
               text,
-              time: t
+              time: t,
+              postId: postId || null
             }
           });
-          const payload = { type: 'message_new', data: saved };
+          const payload = {
+            type: 'message_new',
+            data: {
+              ...saved,
+              // Ensure BigInt is serialized for clients
+              time: typeof saved.time === 'bigint' ? Number(saved.time) : saved.time,
+            },
+          };
           // echo to sender and push to receiver
           sendToUser(userId, payload);
           sendToUser(toUserId, payload);
+        } else if (msg.type === 'post_message_send') {
+          const { postId, fromName, text, time } = msg;
+          if (!postId || !text) return;
+          const t = BigInt(time || Date.now());
+          const saved = await prisma.postMessage.create({
+            data: {
+              postId,
+              fromUserId: userId,
+              fromName: fromName || '',
+              text,
+              time: t
+            }
+          });
+          const payload = {
+            type: 'post_message_new',
+            data: {
+              ...saved,
+              time: typeof saved.time === 'bigint' ? Number(saved.time) : saved.time,
+            },
+          };
+          // broadcast to all clients; clients filter by postId
+          broadcast(payload);
         }
       } catch (_) {}
     });
@@ -95,6 +125,7 @@ function initWS(server, prisma) {
     postCreated: (post) => broadcast({ type: 'post_created', data: post }),
     postUpdated: (post) => broadcast({ type: 'post_updated', data: post }),
     postDeleted: (id) => broadcast({ type: 'post_deleted', data: { id } }),
+    postMessageNew: (m) => broadcast({ type: 'post_message_new', data: m }),
     sendToUser,
   };
 }

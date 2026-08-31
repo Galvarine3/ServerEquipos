@@ -57,16 +57,32 @@ const routerFactory = (prisma) => {
     const body = req.body;
     const arr = Array.isArray(body) ? body : (Array.isArray(body?.players) ? body.players : []);
     const parsed = arr.map(p => playerSchema.safeParse(p)).filter(r => r.success).map(r => r.data);
-    const tx = [];
-    for (const p of parsed) {
-      tx.push(prisma.player.upsert({
-        where: { userId_name: { userId: req.userId, name: p.name } },
-        update: { attack: p.attack, defense: p.defense, physical: p.physical, isGoalkeeper: !!p.isGoalkeeper },
-        create: { ...p, userId: req.userId }
-      }));
+
+    if (parsed.length === 0) {
+      await prisma.player.deleteMany({ where: { userId: req.userId } });
+      return res.json([]);
     }
-    const result = await prisma.$transaction(tx);
-    res.json(result);
+
+    const names = parsed.map(p => p.name);
+
+    await prisma.$transaction([
+      prisma.player.deleteMany({
+        where: {
+          userId: req.userId,
+          name: { notIn: names }
+        }
+      }),
+      ...parsed.map(p =>
+        prisma.player.upsert({
+          where: { userId_name: { userId: req.userId, name: p.name } },
+          update: { attack: p.attack, defense: p.defense, physical: p.physical, isGoalkeeper: !!p.isGoalkeeper },
+          create: { ...p, userId: req.userId }
+        })
+      )
+    ]);
+
+    const list = await prisma.player.findMany({ where: { userId: req.userId }, orderBy: { name: 'asc' } });
+    res.json(list);
   });
 
   return router;

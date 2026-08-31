@@ -10,7 +10,8 @@ android {
 
     defaultConfig {
         applicationId = "com.example.equipos"
-        minSdk = 27
+        // Android 9 (API 28) en adelante
+        minSdk = 28
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -20,7 +21,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            // Reducir código y recursos no usados en release
+            // (esto no afecta al build debug que usas en desarrollo)
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -60,10 +64,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.compose.material:material-icons-extended:1.7.5")
-    implementation("com.github.skydoves:landscapist-glide:2.3.0")
-    implementation("com.github.skydoves:balloon-compose:1.6.8")
-    implementation("androidx.constraintlayout:constraintlayout-compose:1.1.0")
-    implementation("com.google.accompanist:accompanist-navigation-material:0.36.0")
     implementation("androidx.palette:palette-ktx:1.0.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
 

@@ -19,7 +19,7 @@
     <string name="generate">Generar</string>
     <string name="create">Crear</string>
     <string name="undo">Deshacer</string>
-    <string name="players_tap_to_select">Jugadores (toca para seleccionar)</string>
+    <string name="players_tap_to_select">Jugadores (toca para desplegar)</string>
 
     <string name="min_is_2">El mínimo es 2</string>
     <string name="not_enough_selected">No hay suficientes jugadores seleccionados</string>
@@ -126,7 +126,7 @@
     <string name="assignment_b">B</string>
     <string name="assignment_none">N</string>
     <string name="community">Comunidad</string>
-    <string name="open_community">Abrir comunidad</string>
+    <string name="open_community">Comunidad</string>
     <string name="nearby_users">Usuarios cercanos</string>
     <string name="grant_location">Conceder ubicación</string>
     <string name="location_denied">Permiso de ubicación denegado</string>
@@ -140,6 +140,8 @@
     <string name="community_title">Comunidad</string>
     <string name="post_message_label">Mensaje</string>
     <string name="sport_label">Deporte</string>
+    <string name="team_a_color_label">Color Equipo A</string>
+    <string name="team_b_color_label">Color Equipo B</string>
     <string name="sport_futbolito">Futbolito</string>
     <string name="available_players">Disponibles</string>
     <string name="total_players">Total</string>

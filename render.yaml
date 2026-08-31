@@ -11,3 +11,16 @@ services:
       - key: NODE_VERSION
         value: 18
     healthCheckPath: /health
+
+  - type: web
+    name: equipos-server
+    runtime: node
+    rootDir: server
+    plan: free
+    autoDeploy: true
+    buildCommand: npm ci && npm run prisma:generate
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+    healthCheckPath: /health
