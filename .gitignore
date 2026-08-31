@@ -13,3 +13,60 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+
+
+node_modules/
+.kotlin/
+.gradle/
+build/
+app/build/
+app/release/
+*.apk
+*.log
+.idea/
+local.properties
+
+
+# Android / Gradle
+.gradle/
+build/
+app/
+gradle/
+gradlew
+gradlew.bat
+local.properties
+*.apk
+
+# IDE
+.idea/
+
+# Kotlin
+.kotlin/
+
+# Node
+node_modules/
+package.json
+package-lock.json
+webapp/
+
+# Archivos generados / temporales
+*.log
+Detected
+Docs
+Running
+keytool
+node
+equipos-backend@1.0.0
+replay_pid*
+hs_err_pid*
+
+# Otros
+render.yaml
+
+
+# Archivos del proyecto Android raíz que no se subirán
+README.md
+build.gradle.kts
+gradle.properties
+settings.gradle.kts

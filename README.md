@@ -1,9 +1,0 @@
-﻿# Team3
-
-Proyecto de equipos. Este repositorio contiene la carpeta webapp lista para desplegar.
-
-## Estructura
-- webapp/: Aplicación Express mínima.
-
-## Despliegue rápido
-- Railway/GitHub: configurar el servicio apuntando al subdirectorio webapp.
