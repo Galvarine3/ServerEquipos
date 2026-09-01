@@ -1,16 +1,28 @@
-const { Resend } = require('resend');
-
 const apiKey = (process.env.RESEND_API_KEY || '').trim();
 const mailFrom = (process.env.MAIL_FROM || '').trim();
-const resend = apiKey ? new Resend(apiKey) : null;
 
 if (!apiKey) console.warn('[email][resend] RESEND_API_KEY not set');
 
 async function internalSend(msg) {
   if (!apiKey) throw new Error('email_provider_not_configured');
   if (!mailFrom) throw new Error('mail_from_not_configured');
-  const { data, error } = await resend.emails.send(msg);
-  if (error || !data?.id) throw new Error(error?.message || 'resend_failed');
+  let response;
+  try {
+    response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(msg)
+    });
+  } catch (error) {
+    throw new Error(`resend_network_failed: ${error.message}`);
+  }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.id) {
+    throw new Error(data.message || data.name || `resend_failed_${response.status}`);
+  }
 }
 
 async function sendVerificationEmail(to, code) {
