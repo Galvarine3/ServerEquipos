@@ -4,7 +4,9 @@ const jwt = require('jsonwebtoken');
 const { z } = require('zod');
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
-const { sendVerificationEmail, sendVerificationLink } = require('./email');
+const { sendVerificationEmail, sendVerificationLink, isEmailConfigured } = require('./email');
+
+const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 const routerFactory = (prisma) => {
   const router = express.Router();
@@ -26,6 +28,7 @@ const routerFactory = (prisma) => {
   const googleSchema = z.object({ idToken: z.string().min(1) });
 
   async function sendVerification(prisma, user) {
+    if (!isEmailConfigured()) throw new Error('email_provider_not_configured');
     const token = crypto.randomUUID();
     await prisma.user.update({
       where: { id: user.id },
@@ -33,25 +36,25 @@ const routerFactory = (prisma) => {
     });
     const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000';
     const link = `${baseUrl}/auth/verify?token=${encodeURIComponent(token)}`;
-    try {
-      await sendVerificationLink(user, link);
-      return;
-    } catch (e) {
-      console.error('sendVerification error', e);
-      console.log('[auth] verification link:', link);
-      return;
-    }
+    await sendVerificationLink(user, link);
   }
 
   router.post('/register', async (req, res) => {
     const parse = registerSchema.safeParse(req.body);
     if (!parse.success) return res.status(400).json({ error: 'invalid_body' });
-    const { email, password, name } = parse.data;
+    const { password, name } = parse.data;
+    const email = parse.data.email.trim().toLowerCase();
+    if (!isEmailConfigured()) return res.status(503).json({ error: 'email_provider_not_configured' });
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return res.status(409).json({ error: 'email_in_use' });
     const hash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({ data: { email, passwordHash: hash, name, emailVerified: false } });
-    try { await sendVerification(prisma, user); } catch (e) { console.error('sendVerification error', e); }
+    try {
+      await sendVerification(prisma, user);
+    } catch (e) {
+      console.error('sendVerification error', e);
+      return res.status(503).json({ error: 'email_delivery_failed' });
+    }
     res.json({ ok: true });
   });
 
@@ -119,18 +122,25 @@ const routerFactory = (prisma) => {
 
   // Resend verification email
   router.post('/send-verification', async (req, res) => {
-    const { email } = req.body || {};
+    const rawEmail = req.body?.email;
+    const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : rawEmail;
     if (!email || typeof email !== 'string') return res.status(400).json({ error: 'invalid_body' });
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(200).json({ ok: true });
     if (user.emailVerified) return res.status(200).json({ ok: true });
-    try { await sendVerification(prisma, user); } catch (e) { console.error('sendVerification error', e); }
+    try {
+      await sendVerification(prisma, user);
+    } catch (e) {
+      console.error('sendVerification error', e);
+      return res.status(503).json({ error: 'email_delivery_failed' });
+    }
     res.json({ ok: true });
   });
 
   // Send 6-digit verification code via email (does not persist the code yet)
   router.post('/send-code', async (req, res) => {
-    const { email } = req.body || {};
+    const rawEmail = req.body?.email;
+    const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : rawEmail;
     if (!email || typeof email !== 'string') return res.status(400).json({ error: 'invalid_body' });
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(404).json({ error: 'not_found' });
@@ -150,6 +160,9 @@ const routerFactory = (prisma) => {
     if (!token || typeof token !== 'string') return res.status(400).send('invalid_token');
     const user = await prisma.user.findFirst({ where: { verificationToken: token } });
     if (!user) return res.status(400).send('invalid_token');
+    if (!user.verificationSentAt || Date.now() - user.verificationSentAt.getTime() > VERIFICATION_TOKEN_TTL_MS) {
+      return res.status(400).send('expired_token');
+    }
     await prisma.user.update({ where: { id: user.id }, data: { emailVerified: true, verificationToken: null, verificationSentAt: null } });
     res.send('Email verificado. Ya puedes volver a la app e iniciar sesión.');
   });
