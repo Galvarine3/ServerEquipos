@@ -13,8 +13,8 @@ Copia `.env.example` a `.env` y completa:
 - `PORT` (opcional, Render lo inyecta)
 - `GOOGLE_CLIENT_ID` (opcional) Client ID para login Google (audience del ID token)
 - `APP_BASE_URL` (opcional) URL base para links de verificación (por defecto `http://localhost:3000`)
-- `RESEND_API_KEY` (obligatoria para registro por email) API key de Resend
-- `MAIL_FROM` (obligatoria para registro por email) dirección remitente autorizada en Resend; para pruebas puede ser `onboarding@resend.dev`
+- `BREVO_API_KEY` (obligatoria para registro por email) API key de Brevo
+- `MAIL_FROM` (obligatoria para registro por email) dirección remitente verificada en Brevo
 
 El registro por email crea una cuenta no verificada y envía un enlace válido durante 24 horas. El login se rechaza hasta que el enlace sea abierto. En producción, `APP_BASE_URL` debe ser la URL pública del backend para que el enlace recibido funcione.
 
