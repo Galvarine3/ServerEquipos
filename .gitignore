@@ -16,7 +16,10 @@ local.properties
 
 
 
+#De aquí para arriba es el archivo original, y hacía abajo, es para subir sólo el server en el repo
+
 node_modules/
+server/.env
 .kotlin/
 .gradle/
 build/
@@ -66,7 +69,7 @@ render.yaml
 
 
 # Archivos del proyecto Android raíz que no se subirán
-README.md
+
 build.gradle.kts
 gradle.properties
 settings.gradle.kts
