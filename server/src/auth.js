@@ -64,6 +64,7 @@ const routerFactory = (prisma) => {
     const { email, password } = parse.data;
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(401).json({ error: 'invalid_credentials' });
+    if (!user.passwordHash) return res.status(401).json({ error: 'invalid_credentials' });
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) return res.status(401).json({ error: 'invalid_credentials' });
     if (!user.emailVerified) return res.status(403).json({ error: 'email_not_verified' });
