@@ -61,17 +61,27 @@ const routerFactory = (prisma, hub) => {
 
   // List distinct community users with friendship status
   router.get('/users', async (req, res) => {
+    const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     const posts = await prisma.communityPost.findMany({
       select: { userId: true, userName: true, time: true },
       orderBy: { time: 'desc' },
       distinct: ['userId']
     });
-    const ids = posts.map(p => p.userId).filter(Boolean);
+    const postIds = posts.map(p => p.userId).filter(Boolean);
     const users = await prisma.user.findMany({
-      where: { id: { in: ids } },
+      where: query
+        ? {
+            OR: [
+              { name: { contains: query, mode: 'insensitive' } },
+              { email: { contains: query, mode: 'insensitive' } }
+            ]
+          }
+        : { id: { in: postIds } },
       select: { id: true, name: true, email: true }
     });
+    const ids = users.map(u => u.id);
     const userMap = new Map(users.map(u => [u.id, u]));
+    const postMap = new Map(posts.map(p => [p.userId, p]));
     const otherIds = ids.filter(id => id !== req.userId);
     const friends = await prisma.friend.findMany({
       where: { userId: req.userId, friendUserId: { in: otherIds } },
@@ -91,23 +101,24 @@ const routerFactory = (prisma, hub) => {
     const outgoingMap = new Map(outgoing.map(r => [r.toUserId, r.id]));
     const incomingMap = new Map(incoming.map(r => [r.fromUserId, r.id]));
 
-    const result = posts.map((p) => {
-      const u = userMap.get(p.userId);
-      const name = nameFromUser(u, p.userName || '');
+    const result = users.map((u) => {
+      const p = postMap.get(u.id);
+      const name = nameFromUser(u, '');
       let status = 'none';
-      if (p.userId === req.userId) status = 'self';
-      else if (friendSet.has(p.userId)) status = 'friend';
-      else if (outgoingSet.has(p.userId)) status = 'outgoing';
-      else if (incomingSet.has(p.userId)) status = 'incoming';
+      if (u.id === req.userId) status = 'self';
+      else if (friendSet.has(u.id)) status = 'friend';
+      else if (outgoingSet.has(u.id)) status = 'outgoing';
+      else if (incomingSet.has(u.id)) status = 'incoming';
       return {
-        userId: p.userId,
+        userId: u.id,
         name,
-        lastPostTime: typeof p.time === 'bigint' ? Number(p.time) : p.time,
+        email: u.email,
+        lastPostTime: p ? (typeof p.time === 'bigint' ? Number(p.time) : p.time) : 0,
         status,
         requestId: status === 'incoming'
-          ? incomingMap.get(p.userId) || null
+          ? incomingMap.get(u.id) || null
           : status === 'outgoing'
-            ? outgoingMap.get(p.userId) || null
+            ? outgoingMap.get(u.id) || null
             : null
       };
     });
