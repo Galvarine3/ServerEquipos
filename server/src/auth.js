@@ -15,7 +15,13 @@ const routerFactory = (prisma) => {
   const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
   const emailCreds = z.object({ email: z.string().email(), password: z.string().min(6) });
-  const registerSchema = emailCreds.extend({
+  const registerSchema = z.object({
+    email: z.string().email(),
+    password: z.string()
+      .min(8)
+      .regex(/[A-Z]/)
+      .regex(/[a-z]/)
+      .regex(/[0-9]/),
     name: z.string().min(1)
   });
 
@@ -84,19 +90,26 @@ const routerFactory = (prisma) => {
       });
       const payload = ticket.getPayload();
       const email = payload && payload.email;
+      const googleSub = payload && payload.sub;
       const name = payload && payload.name;
-      if (!email) return res.status(401).json({ error: 'invalid_token' });
+      if (!email || !googleSub || payload.email_verified === false) {
+        return res.status(401).json({ error: 'invalid_token' });
+      }
+
+      const normalizedEmail = email.trim().toLowerCase();
 
       const user = await prisma.user.upsert({
-        where: { email },
+        where: { email: normalizedEmail },
         update: {
           name: name || undefined,
+          googleSub,
           emailVerified: true,
         },
         create: {
-          email,
+          email: normalizedEmail,
           name: name || null,
-          passwordHash: '',
+          passwordHash: null,
+          googleSub,
           emailVerified: true,
         },
       });
@@ -104,6 +117,7 @@ const routerFactory = (prisma) => {
       const tokens = signTokens(user.id);
       return res.json({ user: { id: user.id, email: user.email, name: user.name || null }, ...tokens });
     } catch (e) {
+      console.error('[auth][google] token verification failed:', e?.message || e);
       return res.status(401).json({ error: 'invalid_token' });
     }
   });
