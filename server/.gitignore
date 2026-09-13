@@ -1,3 +1,7 @@
 node_modules/
 
 .prisma/
+
+# Nunca versionar el archivo real de variables.
+# .env.example sí se versiona, pero solo con marcadores.
+.env

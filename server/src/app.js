@@ -1,4 +1,15 @@
 require('dotenv').config();
+
+// Se valida la configuración antes de cargar cualquier ruta: si el secreto de
+// firma falta o es débil, el proceso termina acá con un mensaje legible en los
+// logs, en vez de quedar sirviendo tráfico con una sesión falsificable.
+try {
+  require('./config');
+} catch (err) {
+  console.error(err.message);
+  process.exit(1);
+}
+
 const express = require('express');
 const http = require('http');
 const cors = require('cors');

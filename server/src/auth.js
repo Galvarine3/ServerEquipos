@@ -5,12 +5,12 @@ const { z } = require('zod');
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
 const { sendVerificationEmail, sendVerificationLink, isEmailConfigured } = require('./email');
+const { JWT_SECRET } = require('./config');
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 const routerFactory = (prisma) => {
   const router = express.Router();
-  const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
   const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
   const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 

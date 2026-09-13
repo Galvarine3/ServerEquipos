@@ -1,9 +1,9 @@
 const { WebSocketServer } = require('ws');
 const jwt = require('jsonwebtoken');
+const { JWT_SECRET } = require('./config');
 
 function initWS(server, prisma) {
   const wss = new WebSocketServer({ server, path: '/ws' });
-  const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
 
   // userId -> Set<WebSocket>
   const userSockets = new Map();
