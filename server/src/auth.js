@@ -83,21 +83,31 @@ const routerFactory = (prisma) => {
     if (!parse.success) return res.status(400).json({ error: 'invalid_body' });
     if (!googleClient) return res.status(501).json({ error: 'google_not_configured' });
 
+    // El try se cierra apenas termina la verificacion: antes envolvia tambien la
+    // escritura en base, asi que una caida de Postgres se reportaba como
+    // 'invalid_token' y culpaba al token de un problema de infraestructura.
+    let payload;
     try {
       const ticket = await googleClient.verifyIdToken({
         idToken: parse.data.idToken,
         audience: GOOGLE_CLIENT_ID,
       });
-      const payload = ticket.getPayload();
-      const email = payload && payload.email;
-      const googleSub = payload && payload.sub;
-      const name = payload && payload.name;
-      if (!email || !googleSub || payload.email_verified === false) {
-        return res.status(401).json({ error: 'invalid_token' });
-      }
+      payload = ticket.getPayload();
+    } catch (e) {
+      console.error('[auth][google] token verification failed:', e?.message || e);
+      return res.status(401).json({ error: 'invalid_token' });
+    }
 
-      const normalizedEmail = email.trim().toLowerCase();
+    const email = payload && payload.email;
+    const googleSub = payload && payload.sub;
+    const name = payload && payload.name;
+    if (!email || !googleSub || payload.email_verified === false) {
+      return res.status(401).json({ error: 'invalid_token' });
+    }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
+    try {
       const user = await prisma.user.upsert({
         where: { email: normalizedEmail },
         update: {
@@ -117,8 +127,9 @@ const routerFactory = (prisma) => {
       const tokens = signTokens(user.id);
       return res.json({ user: { id: user.id, email: user.email, name: user.name || null }, ...tokens });
     } catch (e) {
-      console.error('[auth][google] token verification failed:', e?.message || e);
-      return res.status(401).json({ error: 'invalid_token' });
+      // Aqui solo llegan fallos de base de datos: el token ya fue validado.
+      console.error('[auth][google] database error:', e?.message || e);
+      return res.status(503).json({ error: 'database_unavailable' });
     }
   });
 
