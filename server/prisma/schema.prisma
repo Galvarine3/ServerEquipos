@@ -16,6 +16,13 @@ model User {
   emailVerified      Boolean         @default(false)
   verificationToken  String?
   verificationSentAt DateTime?
+  // Recuperacion de contrasena: se guarda el hash del codigo, nunca el codigo.
+  resetCodeHash      String?
+  resetCodeExpiresAt DateTime?
+  resetCodeAttempts  Int             @default(0)
+  resetCodeSentAt    DateTime?
+  // Marca el ultimo cambio de contrasena: invalida los refresh tokens anteriores.
+  passwordChangedAt  DateTime?
   createdAt          DateTime        @default(now())
   players            Player[]
   matches            Match[]

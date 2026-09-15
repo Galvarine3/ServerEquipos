@@ -4,10 +4,15 @@ const jwt = require('jsonwebtoken');
 const { z } = require('zod');
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
-const { sendVerificationEmail, sendVerificationLink, isEmailConfigured } = require('./email');
+const { sendVerificationLink, sendPasswordResetCode, isEmailConfigured } = require('./email');
 const { JWT_SECRET } = require('./config');
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+
+// Recuperacion de contrasena por codigo.
+const RESET_CODE_TTL_MS = 15 * 60 * 1000;   // el codigo vive 15 minutos
+const RESET_MAX_ATTEMPTS = 5;               // intentos antes de invalidarlo
+const RESET_RESEND_COOLDOWN_MS = 60 * 1000; // espera minima entre envios
 
 const routerFactory = (prisma) => {
   const router = express.Router();
@@ -32,6 +37,12 @@ const routerFactory = (prisma) => {
   }
 
   const googleSchema = z.object({ idToken: z.string().min(1) });
+
+  const resetSchema = z.object({
+    email: z.string().email(),
+    code: z.string().regex(/^[0-9]{6}$/),
+    password: z.string().min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/)
+  });
 
   async function sendVerification(prisma, user) {
     if (!isEmailConfigured()) throw new Error('email_provider_not_configured');
@@ -136,13 +147,30 @@ const routerFactory = (prisma) => {
   router.post('/refresh', async (req, res) => {
     const { refreshToken } = req.body || {};
     if (!refreshToken) return res.status(400).json({ error: 'missing_token' });
+    let payload;
     try {
-      const payload = jwt.verify(refreshToken, JWT_SECRET);
+      payload = jwt.verify(refreshToken, JWT_SECRET);
       if (payload.typ !== 'refresh') throw new Error('bad_typ');
-      const tokens = signTokens(payload.uid);
-      res.json(tokens);
     } catch {
-      res.status(401).json({ error: 'invalid_token' });
+      return res.status(401).json({ error: 'invalid_token' });
+    }
+    try {
+      // Un cambio de contrasena invalida los refresh emitidos antes. El access
+      // token vive 15 minutos, asi que una sesion robada muere como mucho en ese
+      // plazo, sin pagar una consulta a la base en cada peticion.
+      const user = await prisma.user.findUnique({
+        where: { id: payload.uid },
+        select: { passwordChangedAt: true }
+      });
+      if (!user) return res.status(401).json({ error: 'invalid_token' });
+      if (user.passwordChangedAt &&
+          payload.iat * 1000 < Math.floor(user.passwordChangedAt.getTime() / 1000) * 1000) {
+        return res.status(401).json({ error: 'password_changed' });
+      }
+      return res.json(signTokens(payload.uid));
+    } catch (e) {
+      console.error('[auth][refresh] database error:', e?.message || e);
+      return res.status(503).json({ error: 'database_unavailable' });
     }
   });
 
@@ -163,20 +191,86 @@ const routerFactory = (prisma) => {
     res.json({ ok: true });
   });
 
-  // Send 6-digit verification code via email (does not persist the code yet)
-  router.post('/send-code', async (req, res) => {
-    const rawEmail = req.body?.email;
-    const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : rawEmail;
-    if (!email || typeof email !== 'string') return res.status(400).json({ error: 'invalid_body' });
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return res.status(404).json({ error: 'not_found' });
-    const code = Math.floor(100000 + Math.random() * 900000);
+  // --- Recuperacion de contrasena -------------------------------------------
+  // Paso 1: pedir el codigo. Responde 200 siempre, exista o no la cuenta: si
+  // distinguiera, cualquiera podria averiguar que correos estan registrados.
+  router.post('/forgot-password', async (req, res) => {
+    const raw = req.body?.email;
+    const email = typeof raw === 'string' ? raw.trim().toLowerCase() : null;
+    if (!email) return res.status(400).json({ error: 'invalid_body' });
+    if (!isEmailConfigured()) return res.status(503).json({ error: 'email_provider_not_configured' });
+
     try {
-      await sendVerificationEmail(email, code);
-      res.json({ ok: true });
-    } catch (err) {
-      console.error('send-code error', err);
-      res.status(500).json({ error: 'send_failed' });
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) return res.json({ ok: true });
+
+      // Freno de reenvio: evita usar el endpoint para bombardear un buzon.
+      if (user.resetCodeSentAt &&
+          Date.now() - user.resetCodeSentAt.getTime() < RESET_RESEND_COOLDOWN_MS) {
+        return res.json({ ok: true });
+      }
+
+      const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetCodeHash: await bcrypt.hash(code, 10),
+          resetCodeExpiresAt: new Date(Date.now() + RESET_CODE_TTL_MS),
+          resetCodeAttempts: 0,
+          resetCodeSentAt: new Date()
+        }
+      });
+      await sendPasswordResetCode(email, code, RESET_CODE_TTL_MS / 60000);
+      return res.json({ ok: true });
+    } catch (e) {
+      console.error('[auth][forgot-password]', e?.message || e);
+      return res.status(503).json({ error: 'service_unavailable' });
+    }
+  });
+
+  // Paso 2: canjear el codigo por una contrasena nueva.
+  router.post('/reset-password', async (req, res) => {
+    const parse = resetSchema.safeParse(req.body || {});
+    if (!parse.success) return res.status(400).json({ error: 'invalid_body' });
+    const email = parse.data.email.trim().toLowerCase();
+    const { code, password } = parse.data;
+
+    try {
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user || !user.resetCodeHash || !user.resetCodeExpiresAt) {
+        return res.status(400).json({ error: 'invalid_code' });
+      }
+      if (user.resetCodeExpiresAt.getTime() < Date.now()) {
+        return res.status(400).json({ error: 'code_expired' });
+      }
+      if (user.resetCodeAttempts >= RESET_MAX_ATTEMPTS) {
+        return res.status(429).json({ error: 'too_many_attempts' });
+      }
+      if (!(await bcrypt.compare(code, user.resetCodeHash))) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { resetCodeAttempts: { increment: 1 } }
+        });
+        return res.status(400).json({ error: 'invalid_code' });
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash: await bcrypt.hash(password, 10),
+          passwordChangedAt: new Date(),
+          // Recibir el codigo prueba que controla el correo.
+          emailVerified: true,
+          resetCodeHash: null,
+          resetCodeExpiresAt: null,
+          resetCodeAttempts: 0,
+          resetCodeSentAt: null
+        }
+      });
+      return res.json({ ok: true });
+    } catch (e) {
+      console.error('[auth][reset-password]', e?.message || e);
+      return res.status(503).json({ error: 'service_unavailable' });
     }
   });
 

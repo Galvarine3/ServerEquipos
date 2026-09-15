@@ -46,4 +46,16 @@ async function sendVerificationLink(user, link) {
   console.log('[email][brevo] Email de verificación enviado a:', user.email);
 }
 
-module.exports = { sendVerificationEmail, sendVerificationLink, isEmailConfigured: () => Boolean(apiKey && mailFrom) };
+async function sendPasswordResetCode(to, code, minutes) {
+  const subject = 'Codigo para restablecer tu contrasena';
+  const text = `Tu codigo para restablecer la contrasena es ${code}. Caduca en ${minutes} minutos. `
+    + `Si no lo pediste, ignora este correo: tu contrasena no cambia sola.`;
+  const html = `<p>Tu c\u00f3digo para restablecer la contrase\u00f1a es:</p>`
+    + `<p style="font-size:28px;font-weight:bold;letter-spacing:6px;margin:16px 0">${code}</p>`
+    + `<p>Caduca en ${minutes} minutos y sirve una sola vez.</p>`
+    + `<p style="color:#666;font-size:13px">Si no lo pediste, ignora este correo: tu contrase\u00f1a no cambia sola.</p>`;
+  await internalSend({ to, from: mailFrom, subject, text, html });
+  console.log('[email][brevo] Codigo de recuperacion enviado a:', to);
+}
+
+module.exports = { sendVerificationEmail, sendVerificationLink, sendPasswordResetCode, isEmailConfigured: () => Boolean(apiKey && mailFrom) };
